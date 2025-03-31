@@ -23,7 +23,7 @@
 ### 安装
 
 ```bash
-go get github.com/fanqie/tank-websocket-go-server
+go get -u github.com/fanqie/tank-websocket-go-server
 ```
 
 ### 使用示例
