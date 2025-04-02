@@ -5,8 +5,7 @@ module.exports = {
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Guide', link: '/guide/' },
-      { text: 'GitHub', link: 'https://github.com/fanqie/tank-websocket-go-server' }
+      { text: 'Guide', link: '/guide/' }
     ],
     sidebar: {
       '/guide/': [
@@ -35,12 +34,9 @@ module.exports = {
       selectText: 'Languages',
       label: 'English',
       ariaLabel: 'Languages',
-      editLinkText: 'Edit this page on GitHub',
-      lastUpdated: 'Last Updated',
       nav: [
         { text: 'Home', link: '/' },
-        { text: 'Guide', link: '/guide/' },
-        { text: 'GitHub', link: 'https://github.com/fanqie/tank-websocket-go-server' }
+        { text: 'Guide', link: '/guide/' }
       ]
     },
     '/zh/': {
@@ -50,12 +46,9 @@ module.exports = {
       selectText: '选择语言',
       label: '简体中文',
       ariaLabel: '语言',
-      editLinkText: '在 GitHub 上编辑此页',
-      lastUpdated: '最后更新时间',
       nav: [
         { text: '首页', link: '/zh/' },
-        { text: '指南', link: '/zh/guide/' },
-        { text: 'GitHub', link: 'https://github.com/fanqie/tank-websocket-go-server' }
+        { text: '指南', link: '/zh/guide/' }
       ],
       sidebar: {
         '/zh/guide/': [

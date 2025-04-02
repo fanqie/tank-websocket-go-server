@@ -1,53 +1,61 @@
 ---
 home: true
-heroImage: /logo.png
+heroImage: /images/logo.png
+heroText: Tank WebSocket
+tagline: 一个用 Go 语言实现的轻量级、功能丰富的 WebSocket 服务器
 actionText: 开始使用 →
 actionLink: /zh/guide/
 features:
 - title: 轻量级
-  details: 最小化设置，内存占用小，性能高
+  details: 最小化依赖，二进制文件体积小
 - title: 功能丰富
-  details: 包含身份验证、心跳机制、主题订阅等多种功能
-- title: Go 语言驱动
-  details: 基于 Go 的并发模型，提供高性能的 WebSocket 处理能力
-footer: MIT 许可 | 版权所有 © 2023-present Tank WebSocket
+  details: 内置身份验证、心跳检测、主题订阅等功能
+- title: 易于使用
+  details: 简单的 API 和全面的文档
+- title: 生产就绪
+  details: 在生产环境中经过验证
+footer: MIT 许可 | 版权所有 © 2024-present Tank WebSocket
 ---
-
-# Tank WebSocket
-
-Tank WebSocket 是一个用 Go 语言实现的轻量级、功能丰富的 WebSocket 服务器。它提供了一种简单高效的方式来为您的应用程序添加实时通信功能。
-
-## 特性
-
-- **简单的 API**：易于使用的 WebSocket 连接管理 API
-- **心跳机制**：通过自动 ping/pong 保持连接活跃
-- **主题订阅**：实现发布/订阅消息模式
-- **身份验证**：保护您的 WebSocket 连接
-- **调试日志**：全面的日志记录，方便故障排查
 
 ## 快速开始
 
-```go
-package main
+```bash
+# 安装
+go get github.com/fanqie/tank-websocket-go-server
 
-import (
-    "log"
-    "net/http"
-    tkws "github.com/fanqie/tank-websocket-go-server/pkg"
-)
+# 在代码中使用
+import "github.com/fanqie/tank-websocket-go-server/pkg"
 
-func main() {
-    manager := tkws.NewManager()
-    
-    // 启动管理器
-    go manager.Start()
-    
-    // 处理 WebSocket 连接
-    http.HandleFunc("/ws", manager.HandleConnection)
-    
-    // 启动 HTTP 服务器
-    log.Fatal(http.ListenAndServe(":8080", nil))
-}
+// 创建新的 WebSocket 管理器
+manager := pkg.NewManager()
+
+// 启动服务器
+manager.Start(":8080")
 ```
 
-[开始使用 →](/zh/guide/) 
+## 特性
+
+- 🔐 身份验证支持
+- 💓 心跳机制
+- 📢 主题订阅
+- 🔍 调试日志
+- 🚀 高性能
+- 🔒 默认安全
+
+## 文档
+
+- [安装指南](/zh/guide/installation)
+- [快速开始](/zh/guide/quick-start)
+- [客户端连接](/zh/guide/client-connection)
+- [主题订阅](/zh/guide/topic-subscription)
+- [心跳机制](/zh/guide/heartbeat)
+- [身份验证](/zh/guide/authentication)
+- [调试日志](/zh/guide/debug-logging)
+
+## 贡献
+
+我们欢迎贡献！请查看我们的[贡献指南](https://github.com/fanqie/tank-websocket-go-server/blob/main/CONTRIBUTING.md)了解详情。
+
+## 许可证
+
+[MIT](https://github.com/fanqie/tank-websocket-go-server/blob/main/LICENSE) 
