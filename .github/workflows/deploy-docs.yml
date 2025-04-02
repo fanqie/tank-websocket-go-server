@@ -39,12 +39,16 @@ jobs:
       
       - name: Copy missing content
         run: |
-          # 修复中文订阅文档
-          cp -f docs/guide/topic-subscription.md docs/zh/guide/topic-subscription.md
+          # 修复中文订阅文档 - 使用正确的路径
+          if [ -f "guide/zh/guide/topic-subscription.md" ] && [ $(stat -c%s "guide/zh/guide/topic-subscription.md") -lt 10 ]; then
+            echo "Creating Chinese topic subscription document using English version"
+            # 英文版本存在且中文版本为空，则复制
+            cp -f guide/docs/topic-subscription.md guide/zh/guide/topic-subscription.md || echo "Warning: Could not copy English version"
+          fi
           
           # 确保 VuePress 配置目录存在
           mkdir -p guide/docs/.vuepress
-          cp -r guide/.vuepress/* guide/docs/.vuepress/
+          cp -r guide/.vuepress/* guide/docs/.vuepress/ || echo "Warning: Could not copy VuePress config"
       
       - name: Build VuePress site
         run: |
