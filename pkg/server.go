@@ -27,11 +27,12 @@ func NewManager() *Manager {
 		Topics:            make(map[string]map[*Client]bool),
 		shutdown:          make(chan struct{}),
 		isRunning:         false,
-		enableHeartbeat:   false,
+		enableHeartbeat:   true,
 		heartbeatInterval: 30 * time.Second,
 		heartbeatTimeout:  60 * time.Second,
 		authEnabled:       false,
 		authFunc:          nil,
+		debug:             true, // 默认开启调试日志
 	}
 }
 
@@ -243,20 +244,25 @@ func (c *Client) readPump() {
 					Code:    1003,
 					Time:    time.Now(),
 				}
-				log.Printf("Error: %v", err)
+				c.manager.debugLog("Client %s: Read error: %v", c.userID, err)
 			}
 			break
 		}
 
+		c.manager.debugLog("Client %s: Received message: %s", c.userID, string(message))
+
 		// Handle subscription message
 		if strings.HasPrefix(string(message), "sub:") {
 			topic := string(message[4:])
+			c.manager.debugLog("Client %s: Subscribing to topic: %s", c.userID, topic)
 			c.manager.Subscribe <- &Subscription{client: c, topic: topic}
 		} else if strings.HasPrefix(string(message), "unsub:") {
 			topic := string(message[6:])
+			c.manager.debugLog("Client %s: Unsubscribing from topic: %s", c.userID, topic)
 			c.manager.Unsubscribe <- &Subscription{client: c, topic: topic}
 		} else {
 			// Broadcast message to all clients
+			c.manager.debugLog("Client %s: Broadcasting message: %s", c.userID, string(message))
 			c.manager.Broadcast <- message
 		}
 	}
@@ -284,18 +290,22 @@ func (c *Client) writePump() {
 				Code:    1004,
 				Time:    time.Now(),
 			}
+			c.manager.debugLog("Client %s: Write error: %v", c.userID, err)
 			return
 		}
+		c.manager.debugLog("Client %s: Sent message: %s", c.userID, string(message))
 	}
 }
 
 // BroadcastMessage broadcasts a message to all connected clients
 func (m *Manager) BroadcastMessage(message []byte) {
+	m.debugLog("Broadcasting message to all clients: %s", string(message))
 	m.Broadcast <- message
 }
 
 // BroadcastTopicMessage broadcasts a message to all subscribers of a specific topic
 func (m *Manager) BroadcastTopicMessage(topic string, data string) {
+	m.debugLog("Broadcasting message to topic %s: %s", topic, data)
 	m.BroadcastTopic <- &TopicResponse{
 		Topic: topic,
 		Data:  data,
@@ -390,45 +400,74 @@ func (m *Manager) DisableHeartbeat() {
 // startHeartbeat starts the heartbeat mechanism for a client
 func (c *Client) startHeartbeat() {
 	if !c.manager.enableHeartbeat {
+		c.manager.debugLog("Client %s: Heartbeat is disabled", c.userID)
 		return
 	}
+
+	c.manager.debugLog("Client %s: Starting heartbeat with interval %v, timeout %v",
+		c.userID, c.manager.heartbeatInterval, c.manager.heartbeatTimeout)
+
+	// 设置ping处理器
+	c.conn.SetPingHandler(func(string) error {
+		c.manager.debugLog("Client %s: Received ping, sending pong", c.userID)
+		return c.conn.WriteControl(websocket.PongMessage, []byte{}, time.Now().Add(10*time.Second))
+	})
+
+	// 设置pong处理器
+	lastResponse := time.Now()
+	c.conn.SetPongHandler(func(string) error {
+		lastResponse = time.Now()
+		c.manager.debugLog("Client %s: Received pong response", c.userID)
+		return nil
+	})
 
 	go func() {
 		ticker := time.NewTicker(c.manager.heartbeatInterval)
 		defer ticker.Stop()
 
-		lastResponse := time.Now()
-		c.conn.SetPongHandler(func(string) error {
-			lastResponse = time.Now()
-			return nil
-		})
-
-		for {
-			select {
-			case <-ticker.C:
-				// Send ping message
-				if err := c.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
-					c.manager.Errors <- &ErrorEvent{
-						Client:  c,
-						Message: fmt.Sprintf("Ping error: %v", err),
-						Code:    1005,
-						Time:    time.Now(),
-					}
-					return
+		for range ticker.C {
+			// 发送ping消息
+			if err := c.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
+				c.manager.debugLog("Client %s: Failed to send ping: %v", c.userID, err)
+				c.manager.Errors <- &ErrorEvent{
+					Client:  c,
+					Message: fmt.Sprintf("Ping error: %v", err),
+					Code:    1005,
+					Time:    time.Now(),
 				}
+				return
+			}
+			c.manager.debugLog("Client %s: Sent ping message", c.userID)
 
-				// Check for timeout
-				if time.Since(lastResponse) > c.manager.heartbeatTimeout {
-					c.manager.Errors <- &ErrorEvent{
-						Client:  c,
-						Message: "Client heartbeat timeout",
-						Code:    1006,
-						Time:    time.Now(),
-					}
-					c.conn.Close()
-					return
+			// 检查超时
+			if time.Since(lastResponse) > c.manager.heartbeatTimeout {
+				c.manager.debugLog("Client %s: Heartbeat timeout after %v", c.userID, time.Since(lastResponse))
+				c.manager.Errors <- &ErrorEvent{
+					Client:  c,
+					Message: "Client heartbeat timeout",
+					Code:    1006,
+					Time:    time.Now(),
 				}
+				c.conn.Close()
+				return
 			}
 		}
 	}()
+}
+
+// EnableDebug enables debug logging
+func (m *Manager) EnableDebug() {
+	m.debug = true
+}
+
+// DisableDebug disables debug logging
+func (m *Manager) DisableDebug() {
+	m.debug = false
+}
+
+// debugLog prints debug message if debug is enabled
+func (m *Manager) debugLog(format string, v ...interface{}) {
+	if m.debug {
+		log.Printf(format, v...)
+	}
 }

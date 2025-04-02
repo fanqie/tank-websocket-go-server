@@ -48,7 +48,6 @@ import (
 func main() {
 	// 获取单例WebSocket管理器
 	tkws := pkg.GetSingleInstance()
-	go tkws.Start()
 
 	// 设置HTTP处理程序
 	http.HandleFunc("/ws", tkws.HandleConnection)
@@ -95,9 +94,8 @@ func main() {
 ```go
 // 创建多个WebSocket服务器实例
 tkws1 := pkg.NewInstance()
-tkws2 := pkg.NewInstance()
-
 go tkws1.Start()
+tkws2 := pkg.NewInstance()
 go tkws2.Start()
 
 // 处理不同路径的WebSocket连接

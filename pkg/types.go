@@ -55,6 +55,9 @@ type Manager struct {
 	// Authentication
 	authEnabled bool
 	authFunc    func(r *http.Request) bool
+
+	// Debug configuration
+	debug bool // 是否启用调试日志
 }
 
 // Client represents a WebSocket connection
