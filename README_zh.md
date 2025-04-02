@@ -1,225 +1,190 @@
-# Tank WebSocket Go Server
+# Tank WebSocket 服务器
 
-一个轻量级、高性能的WebSocket服务器，支持单例模式和多例模式，提供主题订阅功能。
+[English Documentation](README.md)
 
-## 功能特点
+一个用 Go 语言实现的轻量级、功能丰富的 WebSocket 服务器。
 
-- **双模式支持**：同时支持单例模式和多例模式
-- **主题订阅**：支持客户端订阅特定主题，接收定向消息
-- **错误处理**：内置错误事件通道，方便监控和处理错误
-- **连接监控**：提供连接状态变化事件（连接、断开、订阅、取消订阅）
-- **优雅关闭**：支持服务器优雅关闭，确保资源正确释放
-- **状态统计**：提供客户端数量、主题订阅数等统计功能
-- **并发安全**：内部实现保证多协程访问安全
-- **消息广播**：支持向所有客户端或特定主题广播消息
-- **心跳检测**：自动检测客户端连接状态
-- **可扩展性**：易于集成到现有系统中
-- **轻量级**：核心代码简洁，依赖少
-- **高性能**：采用高效的并发模型
+## 特性
 
+- **心跳机制**：自动维护长连接
+- **主题订阅**：支持发布/订阅消息模式
+- **身份验证**：灵活的认证系统
+- **连接管理**：高效的客户端连接处理
+- **调试日志**：内置的调试日志系统
+- **错误处理**：全面的错误报告系统
+- **事件通知**：连接和订阅事件跟踪
 
-## 安装使用
-
-### 安装
+## 安装
 
 ```bash
-go get -u github.com/fanqie/tank-websocket-go-server
+go get github.com/fanqie/tank-websocket-go-server
 ```
 
-### 使用示例
-
-#### 单例模式
+## 快速开始
 
 ```go
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
-	"github.com/fanqie/tank-websocket-go-server/pkg"
+	tkws "github.com/fanqie/tank-websocket-go-server/pkg"
 )
 
 func main() {
-	// 获取单例WebSocket管理器
-	tkws := pkg.GetSingleInstance()
+	// 创建 WebSocket 管理器
+	manager := tkws.NewManager()
 
-	// 设置HTTP处理程序
-	http.HandleFunc("/ws", tkws.HandleConnection)
+	// 启用心跳（5秒间隔）
+	manager.EnableHeartbeat(5 * time.Second)
 
-	// 创建HTTP服务器
-	server := &http.Server{
-		Addr: ":8080",
-	}
+	// 启动管理器
+	go manager.Start()
 
-	// 设置HTTP服务器引用，用于关闭
-	tkws.SetHTTPServer(server)
+	// 处理 WebSocket 连接
+	http.HandleFunc("/ws", manager.HandleConnection)
 
-	// 启动HTTP服务器
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("HTTP服务器启动失败: %v", err)
-		}
-	}()
-
-	log.Println("WebSocket服务器已在 :8080 启动")
-
-	// 广播消息给所有客户端
-	tkws.BroadcastMessage([]byte("欢迎使用Tank WebSocket服务器"))
-
-	// 广播消息给特定主题的订阅者
-	tkws.BroadcastTopicMessage("news", "这是一条新闻消息")
-
-	// 等待中断信号，优雅关闭服务器
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	// 创建超时上下文
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// 关闭服务器
-	tkws.Shutdown(ctx)
+	// 启动 HTTP 服务器
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
-```
-
-#### 多例模式
-
-```go
-// 创建多个WebSocket服务器实例
-tkws1 := pkg.NewInstance()
-go tkws1.Start()
-tkws2 := pkg.NewInstance()
-go tkws2.Start()
-
-// 处理不同路径的WebSocket连接
-http.HandleFunc("/ws1", tkws1.HandleConnection)
-http.HandleFunc("/ws2", tkws2.HandleConnection)
 ```
 
 ## 客户端连接
 
-### 浏览器客户端示例
+### 使用原生 WebSocket
 
 ```javascript
-// 创建WebSocket连接
-const socket = new WebSocket('ws://localhost:8080/ws?user_id=user123');
+const ws = new WebSocket('ws://localhost:8080/ws');
 
-// 连接打开时
-socket.onopen = function(e) {
-  console.log('WebSocket连接已建立');
-  
-  // 订阅主题
-  socket.send('sub:news');
+ws.onmessage = function(event) {
+	console.log('收到消息:', event.data);
 };
 
-// 接收消息
-socket.onmessage = function(event) {
-  console.log('收到消息:', event.data);
+ws.onclose = function() {
+	console.log('连接已关闭');
 };
-
-// 关闭连接
-socket.onclose = function(event) {
-  console.log('WebSocket连接已关闭');
-};
-
-// 取消订阅主题
-function unsubscribe() {
-  socket.send('unsub:news');
-}
 
 // 发送消息
-function sendMessage(message) {
-  socket.send(message);
-}
+ws.send('你好，服务器！');
+
+// 订阅主题
+ws.send('sub:mytopic');
+
+// 取消订阅主题
+ws.send('unsub:mytopic');
 ```
 
-## API参考
+### 使用 Tank WebSocket 客户端（推荐）
 
-### 核心组件
+我们提供了一个专门的客户端库 [tank-websocket.js](https://github.com/fanqie/tank-websocket.js)，它提供了更便捷的方式来与服务器交互：
 
-- **Manager**: WebSocket连接管理器
-- **Client**: 表示单个WebSocket连接
-- **Subscription**: 表示主题订阅
+```javascript
+import TankWebSocket from "tank-websocket.js";
 
-### 主要方法
+const twsc = new TankWebSocket.SocketClient('ws://localhost:8080/ws');
 
-| 方法 | 描述 |
-|-----|------|
-| `pkg.GetSingleInstance()` | 获取WebSocket管理器的单例实例 |
-| `pkg.NewInstance()` | 创建新的WebSocket管理器实例（多例模式） |
-| `tkws.Start()` | 启动WebSocket管理器 |
-| `tkws.HandleConnection(w, r)` | 处理新的WebSocket连接请求 |
-| `tkws.BroadcastMessage(message)` | 广播消息给所有连接的客户端 |
-| `tkws.BroadcastTopicMessage(topic, data)` | 广播消息给特定主题的订阅者 |
-| `tkws.Shutdown(ctx)` | 优雅关闭WebSocket管理器和HTTP服务器 |
-| `tkws.GetClientCount()` | 获取当前连接的客户端数量 |
-| `tkws.GetTopicSubscriberCount(topic)` | 获取特定主题的订阅者数量 |
-| `tkws.GetAllTopics()` | 获取所有可用的主题 |
-| `tkws.IsRunning()` | 检查服务器是否正在运行 |
+twsc.onOpen((event) => {
+    console.log("连接已打开", event);
+    
+    // 订阅主题并设置回调
+    twsc.subTopic("mytopic", (data) => {
+        console.log("收到主题消息:", data);
+    });
+    
+    // 发送消息
+    twsc.send("你好，服务器！");
+});
 
-### 事件监控
+twsc.onError((event) => {
+    console.log("连接错误:", event);
+});
 
-```go
-// 处理错误事件
-go func() {
-    for err := range tkws.Errors {
-        log.Printf("WebSocket错误: [代码: %d] %s", err.Code, err.Message)
-    }
-}()
+twsc.onClose((event) => {
+    console.log("连接已关闭:", event);
+});
 
-// 处理连接事件
-go func() {
-    for event := range tkws.ConnEvents {
-        switch event.EventType {
-        case "connect":
-            log.Printf("新连接: 用户ID=%s", event.UserID)
-        case "disconnect":
-            log.Printf("断开连接: 用户ID=%s", event.UserID)
-        case "subscribe":
-            log.Printf("订阅主题: 用户ID=%s, 主题=%s", event.UserID, event.Topic)
-        case "unsubscribe":
-            log.Printf("取消订阅: 用户ID=%s, 主题=%s", event.UserID, event.Topic)
-        }
-    }
-}()
+// 取消订阅主题
+twsc.unsubTopic("mytopic");
+
+// 取消订阅所有主题
+twsc.destroyTopics();
 ```
+
+安装客户端库：
+```bash
+npm install tank-websocket.js
+# 或
+yarn add tank-websocket.js
+```
+
+## API 参考
+
+### 管理器方法
+
+- `NewManager()`: 创建新的 WebSocket 管理器
+- `Start()`: 启动 WebSocket 管理器
+- `EnableHeartbeat(interval time.Duration)`: 启用心跳机制
+- `DisableHeartbeat()`: 禁用心跳机制
+- `EnableAuth(authFunc func(r *http.Request) bool)`: 启用身份验证
+- `DisableAuth()`: 禁用身份验证
+- `EnableDebug()`: 启用调试日志
+- `DisableDebug()`: 禁用调试日志
+- `BroadcastMessage(message []byte, excludeClient *Client)`: 向所有客户端广播消息
+- `BroadcastTopicMessage(topic string, data string)`: 向主题订阅者广播消息
+- `GetClientCount()`: 获取已连接客户端数量
+- `GetTopicSubscriberCount(topic string)`: 获取主题订阅者数量
+- `GetAllTopics()`: 获取所有可用主题
+- `CloseClient(userID string)`: 关闭特定客户端的连接
+- `Shutdown(ctx context.Context)`: 优雅关闭服务器
 
 ## 高级配置
 
-### 自定义WebSocket升级器
+### 自定义 WebSocket 升级器
 
 ```go
-customUpgrader := websocket.Upgrader{
-    ReadBufferSize:  4096,
-    WriteBufferSize: 4096,
-    CheckOrigin: func(r *http.Request) bool {
-        // 自定义来源检查逻辑
-        origin := r.Header.Get("Origin")
-        return origin == "https://allowed-domain.com"
-    },
+upgrader := websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // 实现你的 CORS 逻辑
+	},
 }
-
-// 设置自定义升级器
-pkg.SetCustomUpgrader(customUpgrader)
+tkws.SetCustomUpgrader(upgrader)
 ```
 
-## 性能考虑
+### 身份验证
 
-- 服务器使用goroutine处理每个连接，适合高并发场景
-- 错误和连接事件通道使用缓冲通道，避免阻塞
-- 对长时间空闲的连接，考虑实现心跳机制保持活动状态
+```go
+manager.EnableAuth(func(r *http.Request) bool {
+	token := r.URL.Query().Get("token")
+	return validateToken(token) // 实现你的认证逻辑
+})
+```
 
-## 贡献
+## 错误处理
 
-欢迎提交问题和Pull Request，一起改进这个项目！
+服务器提供了一个错误事件通道，你可以监听它：
+
+```go
+go func() {
+	for err := range manager.Errors {
+		log.Printf("错误: %v (代码: %d)", err.Message, err.Code)
+	}
+}()
+```
+
+## 连接事件
+
+监控连接事件：
+
+```go
+go func() {
+	for event := range manager.ConnEvents {
+		log.Printf("事件: %s, 用户: %s", event.EventType, event.UserID)
+	}
+}()
+```
 
 ## 许可证
 
-MIT
+MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情

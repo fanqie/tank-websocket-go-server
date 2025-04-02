@@ -1,0 +1,19 @@
+{
+  "name": "tank-websocket-docs",
+  "version": "1.0.0",
+  "description": "Documentation for Tank WebSocket",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vuepress dev docs",
+    "docs:build": "vuepress build docs",
+    "docs:deploy": "gh-pages -d docs/.vuepress/dist"
+  },
+  "dependencies": {
+    "vuepress": "^1.9.10",
+    "@vuepress/plugin-back-to-top": "^1.9.10",
+    "@vuepress/plugin-medium-zoom": "^1.9.10"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.1.1"
+  }
+} 

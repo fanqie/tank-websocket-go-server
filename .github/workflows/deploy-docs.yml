@@ -1,0 +1,71 @@
+name: Deploy VuePress site to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          run_install: false
+      
+      - name: Install dependencies
+        run: |
+          cd guide
+          pnpm install
+      
+      - name: Copy missing content
+        run: |
+          # 修复中文订阅文档
+          cp -f docs/guide/topic-subscription.md docs/zh/guide/topic-subscription.md
+          
+          # 确保 VuePress 配置目录存在
+          mkdir -p guide/docs/.vuepress
+          cp -r guide/.vuepress/* guide/docs/.vuepress/
+      
+      - name: Build VuePress site
+        run: |
+          cd guide
+          pnpm docs:build
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: guide/docs/.vuepress/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 
