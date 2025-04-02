@@ -1,10 +1,10 @@
 ---
 home: true
-heroImage: /images/logo.png
+heroImage: /tank-websocket-go-server/images/logo.png
 heroText: Tank WebSocket
 tagline: 一个用 Go 语言实现的轻量级、功能丰富的 WebSocket 服务器
 actionText: 开始使用 →
-actionLink: /zh/guide/
+actionLink: /tank-websocket-go-server/zh/guide/
 features:
 - title: 轻量级
   details: 最小化依赖，二进制文件体积小
@@ -44,13 +44,13 @@ manager.Start(":8080")
 
 ## 文档
 
-- [安装指南](/zh/guide/installation)
-- [快速开始](/zh/guide/quick-start)
-- [客户端连接](/zh/guide/client-connection)
-- [主题订阅](/zh/guide/topic-subscription)
-- [心跳机制](/zh/guide/heartbeat)
-- [身份验证](/zh/guide/authentication)
-- [调试日志](/zh/guide/debug-logging)
+- [安装指南](/tank-websocket-go-server/zh/guide/installation)
+- [快速开始](/tank-websocket-go-server/zh/guide/quick-start)
+- [客户端连接](/tank-websocket-go-server/zh/guide/client-connection)
+- [主题订阅](/tank-websocket-go-server/zh/guide/topic-subscription)
+- [心跳机制](/tank-websocket-go-server/zh/guide/heartbeat)
+- [身份验证](/tank-websocket-go-server/zh/guide/authentication)
+- [调试日志](/tank-websocket-go-server/zh/guide/debug-logging)
 
 ## 贡献
 

@@ -1,8 +1,10 @@
 # 快速开始
 
-本指南将帮助您快速上手 Tank WebSocket 服务器。
+本指南将帮助您快速开始使用 Tank WebSocket 服务器。
 
 ## 基本服务器设置
+
+创建新文件 `main.go`：
 
 ```go
 package main
@@ -10,100 +12,104 @@ package main
 import (
     "log"
     "net/http"
+    "time"
     tkws "github.com/fanqie/tank-websocket-go-server/pkg"
 )
 
 func main() {
     // 创建 WebSocket 管理器
     manager := tkws.NewManager()
-    
-    // 启用心跳（可选，默认已启用，间隔 5 秒）
+
+    // 启用心跳（5秒间隔）
     manager.EnableHeartbeat(5 * time.Second)
-    
-    // 启用调试日志（可选，默认已启用）
-    manager.EnableDebug()
-    
+
     // 启动管理器
     go manager.Start()
-    
+
     // 处理 WebSocket 连接
     http.HandleFunc("/ws", manager.HandleConnection)
-    
+
     // 启动 HTTP 服务器
+    log.Println("WebSocket 服务器启动在 :8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
 
-## 可用功能
+## 运行服务器
 
-### 身份验证
-
-```go
-// 启用身份验证
-manager.EnableAuth(func(r *http.Request) bool {
-    // 在此处添加您的身份验证逻辑
-    token := r.URL.Query().Get("token")
-    return token == "your-auth-token"
-})
-
-// 禁用身份验证
-manager.DisableAuth()
+```bash
+go run main.go
 ```
 
-### 广播消息
+## 客户端连接
 
-```go
-// 向所有客户端广播
-manager.BroadcastMessage([]byte("大家好！"), nil)
+### 使用原生 WebSocket
 
-// 向特定主题广播
-manager.BroadcastTopicMessage("news", "重要新闻！")
+```javascript
+const ws = new WebSocket('ws://localhost:8080/ws');
+
+ws.onopen = function() {
+    console.log('已连接到 WebSocket 服务器');
+    
+    // 订阅主题
+    ws.send('sub:mytopic');
+    
+    // 发送消息
+    ws.send('你好，服务器！');
+};
+
+ws.onmessage = function(event) {
+    console.log('收到消息:', event.data);
+};
+
+ws.onclose = function() {
+    console.log('已断开与 WebSocket 服务器的连接');
+};
 ```
 
-### 主题管理
+### 使用 Tank WebSocket 客户端（推荐）
 
-服务器支持基于主题的消息路由。客户端可以订阅主题并接收发送到这些主题的消息。
+```javascript
+import TankWebSocket from "tank-websocket.js";
 
-### 连接管理
+const twsc = new TankWebSocket.SocketClient('ws://localhost:8080/ws');
 
-```go
-// 获取已连接客户端总数
-count := manager.GetClientCount()
+twsc.onOpen((event) => {
+    console.log("连接已打开", event);
+    
+    // 订阅主题并设置回调
+    twsc.subscribe("mytopic", (data) => {
+        console.log("收到主题消息:", data);
+    });
+    
+    // 发送消息
+    twsc.send("你好，服务器！");
+});
 
-// 获取特定主题的订阅者数量
-topicCount := manager.GetTopicSubscriberCount("news")
+// 处理错误
+twsc.onError((event) => {
+    console.log("连接错误:", event);
+});
 
-// 获取所有活动主题
-topics := manager.GetAllTopics()
-
-// 关闭特定客户端连接
-manager.CloseClient("user_123")
+// 处理连接关闭
+twsc.onClose((event) => {
+    console.log("连接已关闭:", event);
+});
 ```
 
-### 心跳机制
+## 测试连接
 
-```go
-// 启用心跳并设置自定义间隔
-manager.EnableHeartbeat(5 * time.Second)
-
-// 禁用心跳
-manager.DisableHeartbeat()
+1. 启动服务器：
+```bash
+go run main.go
 ```
 
-### 调试日志
-
-```go
-// 启用调试日志
-manager.EnableDebug()
-
-// 禁用调试日志
-manager.DisableDebug()
-```
+2. 打开浏览器的开发者工具（F12）
+3. 在控制台中粘贴客户端代码
+4. 您应该能看到连接消息，并且能够发送/接收消息
 
 ## 下一步
 
 - [客户端连接指南](./client-connection.md)
 - [心跳机制](./heartbeat.md)
-- [主题订阅](./topic-subscription.md)
-- [身份验证](./authentication.md)
-- [调试日志](./debug-logging.md) 
+- [主题订阅](./topic-subscription.md) 
