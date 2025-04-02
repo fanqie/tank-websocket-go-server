@@ -117,9 +117,9 @@ func main() {
 
 	// Print status information
 	log.Printf("Server status: Running=%v", manager.IsRunning())
-
+	// manager.DisableDebug()
 	// Broadcast messages
-	manager.BroadcastMessage([]byte("Hello, World!"))
+	// manager.BroadcastMessage([]byte("Hello, World!"), nil)
 	manager.BroadcastTopicMessage("news", "Latest news")
 
 	// Wait for interrupt signal for graceful shutdown

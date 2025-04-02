@@ -28,8 +28,8 @@ func NewManager() *Manager {
 		shutdown:          make(chan struct{}),
 		isRunning:         false,
 		enableHeartbeat:   true,
-		heartbeatInterval: 30 * time.Second,
-		heartbeatTimeout:  60 * time.Second,
+		heartbeatInterval: 5 * time.Second,  // 每5秒发送一次心跳
+		heartbeatTimeout:  15 * time.Second, // 15秒没有响应就认为超时
 		authEnabled:       false,
 		authFunc:          nil,
 		debug:             true, // 默认开启调试日志
@@ -207,14 +207,29 @@ func (m *Manager) HandleConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 生成唯一的客户端ID
+	clientID := r.URL.Query().Get("user_id")
+	if clientID == "" {
+		clientID = fmt.Sprintf("client_%d", time.Now().UnixNano())
+	}
+
 	// Create new client
 	client := &Client{
 		manager: m,
 		conn:    conn,
 		send:    make(chan []byte, 256),
-		userID:  r.URL.Query().Get("user_id"), // Optional: get user ID from URL parameter
+		userID:  clientID,
 		topics:  make(map[string]bool),
 	}
+
+	// 发送欢迎消息
+	welcomeMsg := fmt.Sprintf("Hello, %s! Welcome to WebSocket server.", clientID)
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(welcomeMsg)); err != nil {
+		m.debugLog("Failed to send welcome message: %v", err)
+		conn.Close()
+		return
+	}
+	m.debugLog("Sent welcome message to client %s", clientID)
 
 	// Register new client
 	client.manager.Register <- client
@@ -249,21 +264,43 @@ func (c *Client) readPump() {
 			break
 		}
 
-		c.manager.debugLog("Client %s: Received message: %s", c.userID, string(message))
+		msgStr := string(message)
+		c.manager.debugLog("Client %s: Received message: %s", c.userID, msgStr)
+
+		// 尝试解析JSON消息
+		var msgMap map[string]interface{}
+		if err := json.Unmarshal(message, &msgMap); err == nil {
+			// 如果是心跳响应消息，忽略
+			if msgType, ok := msgMap["type"].(string); ok && msgType == "heartbeat" {
+				continue
+			}
+		}
 
 		// Handle subscription message
-		if strings.HasPrefix(string(message), "sub:") {
-			topic := string(message[4:])
+		if strings.HasPrefix(msgStr, "sub:") {
+			topic := msgStr[4:]
 			c.manager.debugLog("Client %s: Subscribing to topic: %s", c.userID, topic)
 			c.manager.Subscribe <- &Subscription{client: c, topic: topic}
-		} else if strings.HasPrefix(string(message), "unsub:") {
-			topic := string(message[6:])
+		} else if strings.HasPrefix(msgStr, "unsub:") {
+			topic := msgStr[6:]
 			c.manager.debugLog("Client %s: Unsubscribing from topic: %s", c.userID, topic)
 			c.manager.Unsubscribe <- &Subscription{client: c, topic: topic}
 		} else {
-			// Broadcast message to all clients
-			c.manager.debugLog("Client %s: Broadcasting message: %s", c.userID, string(message))
-			c.manager.Broadcast <- message
+			// 广播消息给其他客户端
+			c.manager.debugLog("Client %s: Broadcasting message to other clients: %s", c.userID, msgStr)
+			c.manager.mutex.Lock()
+			for client := range c.manager.Clients {
+				// 不发送给消息发送者自己
+				if client != c {
+					select {
+					case client.send <- message:
+					default:
+						close(client.send)
+						delete(c.manager.Clients, client)
+					}
+				}
+			}
+			c.manager.mutex.Unlock()
 		}
 	}
 }
@@ -297,10 +334,26 @@ func (c *Client) writePump() {
 	}
 }
 
-// BroadcastMessage broadcasts a message to all connected clients
-func (m *Manager) BroadcastMessage(message []byte) {
-	m.debugLog("Broadcasting message to all clients: %s", string(message))
-	m.Broadcast <- message
+// BroadcastMessage broadcasts a message to all connected clients except the excluded one
+func (m *Manager) BroadcastMessage(message []byte, excludeClient *Client) {
+	excludeID := "none"
+	if excludeClient != nil {
+		excludeID = excludeClient.userID
+	}
+	m.debugLog("Broadcasting message to all clients (except %s): %s", excludeID, string(message))
+
+	m.mutex.Lock()
+	for client := range m.Clients {
+		if excludeClient == nil || client != excludeClient {
+			select {
+			case client.send <- message:
+			default:
+				close(client.send)
+				delete(m.Clients, client)
+			}
+		}
+	}
+	m.mutex.Unlock()
 }
 
 // BroadcastTopicMessage broadcasts a message to all subscribers of a specific topic
@@ -325,7 +378,7 @@ func (m *Manager) Shutdown(ctx context.Context) error {
 
 	// Notify all clients of imminent shutdown
 	closeMessage := []byte("Server is shutting down")
-	m.BroadcastMessage(closeMessage)
+	m.BroadcastMessage(closeMessage, nil)
 
 	// Send shutdown signal
 	m.shutdown <- struct{}{}
@@ -385,11 +438,10 @@ func (m *Manager) CloseClient(userID string) bool {
 	return false
 }
 
-// EnableHeartbeat enables the heartbeat mechanism with specified interval and timeout
-func (m *Manager) EnableHeartbeat(interval, timeout time.Duration) {
+// EnableHeartbeat enables the heartbeat mechanism with specified interval
+func (m *Manager) EnableHeartbeat(interval time.Duration) {
 	m.enableHeartbeat = true
 	m.heartbeatInterval = interval
-	m.heartbeatTimeout = timeout
 }
 
 // DisableHeartbeat disables the heartbeat mechanism
@@ -404,52 +456,48 @@ func (c *Client) startHeartbeat() {
 		return
 	}
 
-	c.manager.debugLog("Client %s: Starting heartbeat with interval %v, timeout %v",
-		c.userID, c.manager.heartbeatInterval, c.manager.heartbeatTimeout)
+	c.manager.debugLog("Client %s: Starting heartbeat with interval %v",
+		c.userID, c.manager.heartbeatInterval)
 
-	// 设置ping处理器
-	c.conn.SetPingHandler(func(string) error {
-		c.manager.debugLog("Client %s: Received ping, sending pong", c.userID)
-		return c.conn.WriteControl(websocket.PongMessage, []byte{}, time.Now().Add(10*time.Second))
-	})
-
-	// 设置pong处理器
-	lastResponse := time.Now()
-	c.conn.SetPongHandler(func(string) error {
-		lastResponse = time.Now()
-		c.manager.debugLog("Client %s: Received pong response", c.userID)
-		return nil
-	})
-
+	// 启动心跳发送goroutine
 	go func() {
+		// 等待一小段时间再开始发送心跳，避免连接建立后立即发送
+		time.Sleep(1 * time.Second)
+
 		ticker := time.NewTicker(c.manager.heartbeatInterval)
 		defer ticker.Stop()
 
-		for range ticker.C {
-			// 发送ping消息
-			if err := c.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
-				c.manager.debugLog("Client %s: Failed to send ping: %v", c.userID, err)
-				c.manager.Errors <- &ErrorEvent{
-					Client:  c,
-					Message: fmt.Sprintf("Ping error: %v", err),
-					Code:    1005,
-					Time:    time.Now(),
-				}
-				return
-			}
-			c.manager.debugLog("Client %s: Sent ping message", c.userID)
+		consecutiveFailures := 0 // 连续发送失败次数
+		maxFailures := 3         // 最大允许的连续失败次数
 
-			// 检查超时
-			if time.Since(lastResponse) > c.manager.heartbeatTimeout {
-				c.manager.debugLog("Client %s: Heartbeat timeout after %v", c.userID, time.Since(lastResponse))
-				c.manager.Errors <- &ErrorEvent{
-					Client:  c,
-					Message: "Client heartbeat timeout",
-					Code:    1006,
-					Time:    time.Now(),
+		for {
+			select {
+			case <-ticker.C:
+
+				// 尝试发送心跳消息
+				if err := c.conn.WriteMessage(websocket.TextMessage, []byte("heartbeat")); err != nil {
+					consecutiveFailures++
+					c.manager.debugLog("Client %s: Failed to send heartbeat (%d/%d failures): %v",
+						c.userID, consecutiveFailures, maxFailures, err)
+
+					if consecutiveFailures >= maxFailures {
+						c.manager.debugLog("Client %s: Too many consecutive heartbeat failures, closing connection", c.userID)
+						c.manager.Errors <- &ErrorEvent{
+							Client:  c,
+							Message: fmt.Sprintf("Heartbeat failed %d times consecutively", consecutiveFailures),
+							Code:    1005,
+							Time:    time.Now(),
+						}
+						c.conn.Close()
+						return
+					}
+				} else {
+					// 发送成功，重置失败计数
+					if consecutiveFailures > 0 {
+						c.manager.debugLog("Client %s: Heartbeat restored after %d failures", c.userID, consecutiveFailures)
+					}
+					consecutiveFailures = 0
 				}
-				c.conn.Close()
-				return
 			}
 		}
 	}()
