@@ -1,10 +1,10 @@
 ---
 home: true
-heroImage: /tank-websocket-go-server/images/logo.png
+heroImage: /images/logo.png
 heroText: Tank WebSocket
 tagline: A lightweight, feature-rich WebSocket server implementation in Go
 actionText: Get Started →
-actionLink: /tank-websocket-go-server/en/guide/
+actionLink: /en/guide/
 features:
 - title: Lightweight
   details: Minimal dependencies and small binary size
@@ -44,13 +44,13 @@ manager.Start(":8080")
 
 ## Documentation
 
-- [Installation Guide](/tank-websocket-go-server/en/guide/installation)
-- [Quick Start Guide](/tank-websocket-go-server/en/guide/quick-start)
-- [Client Connection](/tank-websocket-go-server/en/guide/client-connection)
-- [Topic Subscription](/tank-websocket-go-server/en/guide/topic-subscription)
-- [Heartbeat Mechanism](/tank-websocket-go-server/en/guide/heartbeat)
-- [Authentication](/tank-websocket-go-server/en/guide/authentication)
-- [Debug Logging](/tank-websocket-go-server/en/guide/debug-logging)
+- [Installation Guide](/en/guide/installation)
+- [Quick Start Guide](/en/guide/quick-start)
+- [Client Connection](/en/guide/client-connection)
+- [Topic Subscription](/en/guide/topic-subscription)
+- [Heartbeat Mechanism](/en/guide/heartbeat)
+- [Authentication](/en/guide/authentication)
+- [Debug Logging](/en/guide/debug-logging)
 
 ## Contributing
 

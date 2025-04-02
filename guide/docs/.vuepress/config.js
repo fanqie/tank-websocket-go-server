@@ -2,14 +2,15 @@ module.exports = {
   base: '/tank-websocket-go-server/',
   title: 'Tank WebSocket',
   description: 'A lightweight, feature-rich WebSocket server implementation in Go',
+  routerMode: 'hash',
   themeConfig: {
-    logo: '/tank-websocket-go-server/images/logo.png',
+    logo: '/images/logo.png',
     nav: [
-      { text: 'Home', link: '/tank-websocket-go-server/en/' },
-      { text: 'Guide', link: '/tank-websocket-go-server/en/guide/' }
+      { text: 'Home', link: '/en/' },
+      { text: 'Guide', link: '/en/guide/' }
     ],
     sidebar: {
-      '/tank-websocket-go-server/en/guide/': [
+      '/en/guide/': [
         {
           title: 'Guide',
           collapsable: false,
@@ -28,7 +29,7 @@ module.exports = {
     }
   },
   locales: {
-    '/tank-websocket-go-server/en/': {
+    '/': {
       lang: 'en-US',
       title: 'Tank WebSocket',
       description: 'A lightweight, feature-rich WebSocket server implementation in Go',
@@ -36,11 +37,11 @@ module.exports = {
       label: 'English',
       ariaLabel: 'Languages',
       nav: [
-        { text: 'Home', link: '/tank-websocket-go-server/en/' },
-        { text: 'Guide', link: '/tank-websocket-go-server/en/guide/' }
+        { text: 'Home', link: '/en/' },
+        { text: 'Guide', link: '/en/guide/' }
       ],
       sidebar: {
-        '/tank-websocket-go-server/en/guide/': [
+        '/en/guide/': [
           {
             title: 'Guide',
             collapsable: false,
@@ -58,7 +59,7 @@ module.exports = {
         ]
       }
     },
-    '/tank-websocket-go-server/zh/': {
+    '/zh/': {
       lang: 'zh-CN',
       title: 'Tank WebSocket',
       description: '一个用 Go 语言实现的轻量级、功能丰富的 WebSocket 服务器',
@@ -66,11 +67,11 @@ module.exports = {
       label: '简体中文',
       ariaLabel: '语言',
       nav: [
-        { text: '首页', link: '/tank-websocket-go-server/zh/' },
-        { text: '指南', link: '/tank-websocket-go-server/zh/guide/' }
+        { text: '首页', link: '/zh/' },
+        { text: '指南', link: '/zh/guide/' }
       ],
       sidebar: {
-        '/tank-websocket-go-server/zh/guide/': [
+        '/zh/guide/': [
           {
             title: '指南',
             collapsable: false,
@@ -94,7 +95,7 @@ module.exports = {
     '@vuepress/medium-zoom'
   ],
   head: [
-    ['link', { rel: 'icon', href: '/tank-websocket-go-server/images/favicon.ico' }]
+    ['link', { rel: 'icon', href: '/images/favicon.ico' }]
   ],
   markdown: {
     lineNumbers: true
